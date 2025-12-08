@@ -1,0 +1,36 @@
+stages:
+  - deploy
+
+variables:
+  DEPLOY_DIR: "/var/www/attractions"
+
+deploy_production:
+  stage: deploy
+  only:
+    - main          # ถ้าใช้ branch อื่นก็แก้ตรงนี้
+  tags:
+    - vps           # ตรงกับ tag ของ runner
+  script:
+    - echo "Deploy to VPS..."
+
+    # สร้างโฟลเดอร์ปลายทางถ้ายังไม่มี
+    - sudo mkdir -p "$DEPLOY_DIR"
+
+    # sync โค้ดจาก repo ไปยังโฟลเดอร์ deploy
+    - sudo rsync -av --delete ./ "$DEPLOY_DIR"/
+
+    # เข้าโฟลเดอร์ deploy
+    - cd "$DEPLOY_DIR"
+
+    # ถ้ายังไม่มี docker / docker compose ให้ติดตั้ง (รันครั้งแรกๆ)
+    - if ! command -v docker >/dev/null 2>&1; then
+        sudo apt-get update &&
+        sudo apt-get install -y docker.io docker-compose-plugin;
+      fi
+
+    # รัน stack ด้วย docker compose
+    - sudo docker compose pull || true
+    - sudo docker compose up -d --build
+
+  environment:
+    name: production
